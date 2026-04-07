@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -63,6 +61,8 @@ export class AuthService {
     installation.hubspotPortalId = tokenData.hubId
       ? String(tokenData.hubId)
       : null;
+
+    installation.status = InstallationStatus.CONNECTED;
 
     await this.installationRepo.save(installation);
 
