@@ -1,0 +1,9 @@
+{
+  "name": "wix-hubspot-integration",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev:backend": "cd backend && npm run start:dev",
+    "dev:wix": "cd app && npm run dev"
+  }
+}
