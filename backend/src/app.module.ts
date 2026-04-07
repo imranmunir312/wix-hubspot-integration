@@ -7,6 +7,8 @@ import { InstallationsModule } from './installations/installations.module';
 import { MappingsModule } from './mappings/mappings.module';
 import { ContactLinksModule } from './contact-links/contact-links.module';
 import { SyncEventsModule } from './sync-events/sync-events.module';
+import { AuthModule } from './auth/auth.module';
+import { HubspotModule } from './hubspot/hubspot.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { SyncEventsModule } from './sync-events/sync-events.module';
     MappingsModule,
     ContactLinksModule,
     SyncEventsModule,
+    AuthModule,
+    HubspotModule,
   ],
   controllers: [AppController],
   providers: [AppService],
