@@ -19,9 +19,15 @@ export class AuthController {
     @Res() res: Response,
   ) {
     await this.authService.handleCallback(code, state);
-    return res.redirect(
-      `${process.env.FRONTEND_SUCCESS_URL}/?hubspotConnected=true`,
-    );
+
+    return res.send(`
+    <html>
+      <body style="font-family: Arial; padding: 24px;">
+        <h2>HubSpot connected successfully</h2>
+        <p>You can close this tab and return to your Wix dashboard.</p>
+      </body>
+    </html>
+  `);
   }
 
   @Get('status')
