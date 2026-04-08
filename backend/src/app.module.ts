@@ -11,7 +11,7 @@ import { AuthModule } from './auth/auth.module';
 import { HubspotModule } from './hubspot/hubspot.module';
 import { SyncModule } from './sync/sync.module';
 import { FormsModule } from './forms/forms.module';
-
+import { WixModule } from './wix/wix.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -35,6 +35,7 @@ import { FormsModule } from './forms/forms.module';
     HubspotModule,
     SyncModule,
     FormsModule,
+    WixModule,
   ],
   controllers: [AppController],
   providers: [AppService],
