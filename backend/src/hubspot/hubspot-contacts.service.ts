@@ -91,7 +91,10 @@ export class HubspotContactsService {
     const existing = await this.searchByEmail(accessToken, email);
 
     if (existing?.id) {
-      return this.update(accessToken, existing.id, properties);
+      return this.update(accessToken, existing.id, {
+        ...properties,
+        email,
+      });
     }
 
     return this.create(accessToken, {

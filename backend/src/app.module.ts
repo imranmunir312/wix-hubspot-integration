@@ -9,6 +9,8 @@ import { ContactLinksModule } from './contact-links/contact-links.module';
 import { SyncEventsModule } from './sync-events/sync-events.module';
 import { AuthModule } from './auth/auth.module';
 import { HubspotModule } from './hubspot/hubspot.module';
+import { SyncModule } from './sync/sync.module';
+import { FormsModule } from './forms/forms.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { HubspotModule } from './hubspot/hubspot.module';
     SyncEventsModule,
     AuthModule,
     HubspotModule,
+    SyncModule,
+    FormsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -4,7 +4,10 @@ import { Repository } from 'typeorm';
 import { FieldMapping } from './field-mappings.entity';
 import { Installation } from '../installations/installation.entity';
 import { SaveMappingsDto } from './dto/save-mappings.dto';
-import { TransformType } from '../common/enums/mapping.enums';
+import { SyncDirection, TransformType } from '../common/enums/mapping.enums';
+import { CryptoService } from '../auth/crypto.service';
+import { HubspotPropertiesService } from '../hubspot/hubspot-properties.service';
+import { HubspotTokenService } from '../hubspot/hubspot-token/hubspot-token.service';
 
 @Injectable()
 export class MappingsService {
@@ -13,9 +16,16 @@ export class MappingsService {
     private readonly mappingRepo: Repository<FieldMapping>,
     @InjectRepository(Installation)
     private readonly installationRepo: Repository<Installation>,
+    private readonly cryptoService: CryptoService,
+    private readonly hubspotPropertiesService: HubspotPropertiesService,
+    private readonly hubspotTokenService: HubspotTokenService,
   ) {}
 
   async getMappings(installationId: string) {
+    if (!installationId) {
+      throw new BadRequestException('installationId is required');
+    }
+
     return this.mappingRepo.find({
       where: { installationId },
       order: { createdAt: 'ASC' },
@@ -37,27 +47,50 @@ export class MappingsService {
       { key: 'utm_content', label: 'UTM Content' },
       { key: 'pageUrl', label: 'Page URL' },
       { key: 'referrer', label: 'Referrer' },
+      { key: 'timestamp', label: 'Submission Timestamp' },
     ];
   }
 
-  getHubSpotProperties() {
-    return [
-      { name: 'firstname', label: 'First name', type: 'string' },
-      { name: 'lastname', label: 'Last name', type: 'string' },
-      { name: 'email', label: 'Email', type: 'string' },
-      { name: 'phone', label: 'Phone', type: 'string' },
-      { name: 'company', label: 'Company', type: 'string' },
-      { name: 'jobtitle', label: 'Job title', type: 'string' },
-    ];
+  async getHubSpotProperties(installationId?: string) {
+    if (!installationId) {
+      return [];
+    }
+
+    const installation = await this.installationRepo.findOne({
+      where: { id: installationId },
+    });
+
+    if (!installation?.hubspotAccessTokenEnc) {
+      return [];
+    }
+
+    const accessToken =
+      await this.hubspotTokenService.getValidAccessToken(installationId);
+    return this.hubspotPropertiesService.getContactProperties(accessToken);
   }
 
   async saveMappings(installationId: string, dto: SaveMappingsDto) {
+    if (!installationId) {
+      throw new BadRequestException('installationId is required');
+    }
+
     const installation = await this.installationRepo.findOne({
       where: { id: installationId },
     });
 
     if (!installation) {
       throw new BadRequestException('Installation not found');
+    }
+
+    const hubspotPropertyNames = dto.mappings.map((m) => m.hubspotPropertyName);
+    const duplicates = hubspotPropertyNames.filter(
+      (item, index) => hubspotPropertyNames.indexOf(item) !== index,
+    );
+
+    if (duplicates.length > 0) {
+      throw new BadRequestException(
+        `Duplicate HubSpot property mapping found: ${duplicates[0]}`,
+      );
     }
 
     await this.mappingRepo.delete({ installationId });
@@ -67,7 +100,7 @@ export class MappingsService {
         installationId,
         wixFieldKey: item.wixFieldKey,
         hubspotPropertyName: item.hubspotPropertyName,
-        direction: item.direction,
+        direction: item.direction ?? SyncDirection.BIDIRECTIONAL,
         transformType: item.transformType ?? TransformType.NONE,
         defaultValue: item.defaultValue,
         isEnabled: item.isEnabled ?? true,

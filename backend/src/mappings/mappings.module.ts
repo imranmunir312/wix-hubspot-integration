@@ -6,6 +6,8 @@ import { ContactLink } from '../contact-links/contact-link.entity';
 import { FieldMapping } from './field-mappings.entity';
 import { Installation } from '../installations/installation.entity';
 import { TypeOrmModule } from '@nestjs/typeorm/dist/typeorm.module';
+import { AuthModule } from '../auth/auth.module';
+import { HubspotModule } from '../hubspot/hubspot.module';
 
 @Module({
   imports: [
@@ -15,8 +17,11 @@ import { TypeOrmModule } from '@nestjs/typeorm/dist/typeorm.module';
       ContactLink,
       SyncEvent,
     ]),
+    AuthModule,
+    HubspotModule,
   ],
   providers: [MappingsService],
   controllers: [MappingsController],
+  exports: [MappingsService],
 })
 export class MappingsModule {}

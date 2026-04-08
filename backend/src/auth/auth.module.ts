@@ -10,6 +10,6 @@ import { CryptoService } from './crypto.service';
   imports: [TypeOrmModule.forFeature([Installation])],
   controllers: [AuthController],
   providers: [AuthService, HubspotAuthService, CryptoService],
-  exports: [AuthService],
+  exports: [AuthService, CryptoService, HubspotAuthService],
 })
 export class AuthModule {}

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { MappingsService } from './mappings.service';
 import { SaveMappingsDto } from './dto/save-mappings.dto';
 
@@ -6,28 +6,26 @@ import { SaveMappingsDto } from './dto/save-mappings.dto';
 export class MappingsController {
   constructor(private readonly mappingsService: MappingsService) {}
 
-  private readonly demoInstallationId = 'replace-me-later';
-
   @Get('options/wix-fields')
   getWixFields() {
     return this.mappingsService.getWixFields();
   }
 
   @Get('options/hubspot-properties')
-  getHubSpotProperties() {
-    return this.mappingsService.getHubSpotProperties();
+  async getHubSpotProperties(@Query('installationId') installationId: string) {
+    return this.mappingsService.getHubSpotProperties(installationId);
   }
 
   @Get()
-  async getMappings() {
-    return await Promise.resolve([]);
+  async getMappings(@Query('installationId') installationId: string) {
+    return this.mappingsService.getMappings(installationId);
   }
 
   @Post()
-  async saveMappings(@Body() dto: SaveMappingsDto) {
-    return Promise.resolve({
-      message: 'Step 2 placeholder. Real installation-aware save comes next.',
-      received: dto,
-    });
+  async saveMappings(
+    @Query('installationId') installationId: string,
+    @Body() dto: SaveMappingsDto,
+  ) {
+    return this.mappingsService.saveMappings(installationId, dto);
   }
 }
