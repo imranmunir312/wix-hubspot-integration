@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { AppStrategy, createClient } from '@wix/sdk';
 import { contacts } from '@wix/crm';
+import { embeddedScripts } from '@wix/app-management';
 import { Installation } from '../../installations/installation.entity';
 import { ConfigService } from '@nestjs/config';
 
@@ -26,7 +27,7 @@ export class WixSdkClientService {
         appSecret,
         instanceId: installation.wixInstanceId,
       }),
-      modules: { contacts },
+      modules: { contacts, embeddedScripts },
     });
   }
 }

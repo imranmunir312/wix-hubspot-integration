@@ -7,7 +7,7 @@ import type {
 } from "./dashboardTypes";
 import { wixClient } from "./wixClient";
 
-const BASE_URL = "http://localhost:4000";
+const BASE_URL = import.meta.env.PUBLIC_BACKEND_BASE_URL;
 
 export const useDashboardApi = () => {
   const authFetch = async (path: string, init?: RequestInit) =>
@@ -34,7 +34,9 @@ export const useDashboardApi = () => {
   };
 
   const getHubspotProperties = async (): Promise<HubspotPropertyOption[]> => {
-    const response = await authFetch("/api/mappings/options/hubspot-properties");
+    const response = await authFetch(
+      "/api/mappings/options/hubspot-properties",
+    );
 
     if (!response.ok) {
       throw new Error("Failed to fetch HubSpot properties");

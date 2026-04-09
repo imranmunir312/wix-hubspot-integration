@@ -1,0 +1,18 @@
+<script id="hubspot-config" data-url="{{backend_script_url}}"></script>
+
+<script>
+  (function () {
+    var configEl = document.getElementById("hubspot-config");
+
+    var encodedUrl = configEl.getAttribute("data-url");
+
+    console.log(encodedUrl);
+
+    var script = document.createElement("script");
+    script.id = "hubspot-form-capture";
+    script.async = true;
+    script.src = encodedUrl;
+
+    document.body.appendChild(script);
+  })();
+</script>
