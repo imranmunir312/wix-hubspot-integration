@@ -26,7 +26,7 @@ export class WixWebhookHandlersService {
       return;
     }
 
-    client.appInstances.onAppInstanceInstalled(async (event) => {
+    client.appInstances.onAppInstanceInstalled((event) => {
       const instanceId = event.metadata.instanceId;
       if (!instanceId) {
         this.logger.warn(
@@ -37,12 +37,19 @@ export class WixWebhookHandlersService {
 
       this.logger.log(`onAppInstanceInstalled: instanceId=${instanceId}`);
 
-      await this.wixInstallService.handleAppInstalledEvent({
-        instanceId,
-      });
+      this.wixInstallService
+        .handleAppInstalledEvent({
+          instanceId,
+        })
+        .catch((error: unknown) => {
+          this.logger.error(
+            `Failed async app-installed handling for instanceId=${event.metadata.instanceId}`,
+            error instanceof Error ? error.stack : String(error),
+          );
+        });
     });
 
-    client.contacts.onContactCreated(async (event) => {
+    client.contacts.onContactCreated((event) => {
       const instanceId = event.metadata.instanceId;
       const contactId = event.metadata.entityId ?? event.entity._id;
 
@@ -57,15 +64,22 @@ export class WixWebhookHandlersService {
         `onContactCreated: instanceId=${instanceId}, contactId=${contactId}`,
       );
 
-      await this.wixWebhooksService.handleContactEventFromSdk({
-        instanceId,
-        wixContactId: contactId,
-        eventId: event.metadata._id,
-        slug: 'created',
-      });
+      this.wixWebhooksService
+        .handleContactEventFromSdk({
+          instanceId,
+          wixContactId: contactId,
+          eventId: event.metadata._id,
+          slug: 'created',
+        })
+        .catch((error: unknown) => {
+          this.logger.error(
+            `Failed async contact-created handling for instanceId=${event.metadata.instanceId}, contactId=${event.metadata.entityId}`,
+            error instanceof Error ? error.stack : String(error),
+          );
+        });
     });
 
-    client.contacts.onContactUpdated(async (event) => {
+    client.contacts.onContactUpdated((event) => {
       const instanceId = event.metadata.instanceId;
       const contactId = event.metadata.entityId ?? event.entity._id;
 
@@ -80,12 +94,19 @@ export class WixWebhookHandlersService {
         `onContactUpdated: instanceId=${instanceId}, contactId=${contactId}`,
       );
 
-      await this.wixWebhooksService.handleContactEventFromSdk({
-        instanceId,
-        wixContactId: contactId,
-        eventId: event.metadata._id,
-        slug: 'updated',
-      });
+      this.wixWebhooksService
+        .handleContactEventFromSdk({
+          instanceId,
+          wixContactId: contactId,
+          eventId: event.metadata._id,
+          slug: 'updated',
+        })
+        .catch((error: unknown) => {
+          this.logger.error(
+            `Failed async contact-updated handling for instanceId=${event.metadata.instanceId}, contactId=${event.metadata.entityId}`,
+            error instanceof Error ? error.stack : String(error),
+          );
+        });
     });
 
     this.initialized = true;

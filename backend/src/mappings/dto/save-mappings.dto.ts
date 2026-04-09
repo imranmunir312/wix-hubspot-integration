@@ -21,7 +21,7 @@ class MappingRowDto {
 
   @IsOptional()
   @IsIn(Object.values(TransformType))
-  transformType?: TransformType;
+  transformType: TransformType;
 
   @IsOptional()
   @IsString()

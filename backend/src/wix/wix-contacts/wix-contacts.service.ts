@@ -1,11 +1,11 @@
 import {
-  Injectable,
   BadRequestException,
+  Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
-import axios, { AxiosInstance } from 'axios';
+import type { ContactInfo } from '@wix/auto_sdk_crm_contacts';
 import { Installation } from '../../installations/installation.entity';
-import { WixAuthService } from '../wix-auth/wix-auth.service';
+import { WixSdkClientService } from '../wix-sdk-client/wix-sdk-client.service';
 
 export type WixContactInput = {
   firstName?: string;
@@ -14,7 +14,7 @@ export type WixContactInput = {
   phone?: string;
   company?: string;
   jobTitle?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 type WixContactSummary = {
@@ -22,45 +22,56 @@ type WixContactSummary = {
   revision?: number;
 };
 
-type WixQueryContactsResponse = {
-  contacts?: Array<{
-    id?: string;
-    revision?: number;
-    primaryInfo?: {
-      email?: string;
+type WixContactLike = {
+  _id?: string;
+  id?: string;
+  revision?: number;
+  primaryInfo?: {
+    email?: string;
+    phone?: string;
+  };
+  info?: {
+    name?: {
+      first?: string;
+      last?: string;
     };
-  }>;
-};
-
-type WixGetContactResponse = {
-  contact?: {
-    id?: string;
-    revision?: number;
+    emails?: {
+      items?: Array<{
+        email?: string;
+        tag?: string;
+        primary?: boolean;
+      }>;
+    };
+    phones?: {
+      items?: Array<{
+        phone?: string;
+        tag?: string;
+        primary?: boolean;
+      }>;
+    };
+    company?: string;
+    jobTitle?: string;
   };
 };
 
-type WixCreateContactResponse = {
-  contact?: {
-    id?: string;
-    revision?: number;
-  };
+type WixQueryResult = {
+  items?: WixContactLike[];
+  contacts?: WixContactLike[];
 };
 
-type WixUpdateContactResponse = {
-  contact?: {
-    id?: string;
-    revision?: number;
-  };
-};
+type WixGetResult = {
+  contact?: WixContactLike;
+} & WixContactLike;
+
+type WixCreateOrUpdateResult = {
+  contact?: WixContactLike;
+} & WixContactLike;
 
 @Injectable()
 export class WixContactsService {
-  constructor(private readonly wixAuthService: WixAuthService) {}
+  constructor(private readonly wixSdkClientService: WixSdkClientService) {}
 
-  private readonly contactsBaseUrl =
-    'https://www.wixapis.com/contacts/v4/contacts';
-
-  private toWixContactInfo(payload: WixContactInput) {
+  private toWixContactPayload(payload: WixContactInput): ContactInfo {
     return {
       name: {
         first: payload.firstName ?? '',
@@ -109,106 +120,105 @@ export class WixContactsService {
   ): number {
     if (revision === undefined) {
       throw new InternalServerErrorException(
-        `Wix did not return a revision while ${context}`,
+        `Wix did not return a contact revision while ${context}`,
       );
     }
 
     return revision;
   }
 
-  private async getHttpClient(
-    installation: Installation,
-  ): Promise<AxiosInstance> {
-    const token = await this.wixAuthService.createAppAccessToken(installation);
+  private extractContact(
+    result: WixGetResult | WixCreateOrUpdateResult,
+  ): WixContactLike {
+    if (!result || typeof result !== 'object') {
+      throw new InternalServerErrorException(
+        'Wix returned an empty contact result',
+      );
+    }
 
-    return axios.create({
-      headers: {
-        Authorization: token,
-        'Content-Type': 'application/json',
-      },
-    });
+    const candidate =
+      (result as { contact?: WixContactLike }).contact ??
+      (result as WixContactLike);
+
+    if (!candidate || typeof candidate !== 'object') {
+      throw new InternalServerErrorException(
+        'Wix returned an invalid contact payload',
+      );
+    }
+
+    return candidate;
   }
 
+  private getContactId(contact: WixContactLike, context: string): string {
+    const id = contact._id ?? contact.id;
+
+    if (!id) {
+      throw new InternalServerErrorException(
+        `Wix did not return a contact ID while ${context}`,
+      );
+    }
+
+    return id;
+  }
   async findByEmail(
     installation: Installation,
     email: string,
   ): Promise<WixContactSummary | null> {
-    if (!email) {
+    if (!email.trim()) {
       throw new BadRequestException('Email is required');
     }
 
-    const http = await this.getHttpClient(installation);
+    const wixClient = this.wixSdkClientService.getClient(installation);
 
-    const { data } = await http.post<WixQueryContactsResponse>(
-      `${this.contactsBaseUrl}/query`,
-      {
-        query: {
-          filter: {
-            'primaryInfo.email': {
-              $eq: email,
-            },
-          },
-          paging: {
-            limit: 1,
-            offset: 0,
-          },
-        },
-      },
-    );
+    const query = wixClient.contacts
+      .queryContacts()
+      .eq('primaryInfo.email', email.trim())
+      .limit(1);
 
-    const item = data.contacts?.[0] ?? null;
-    if (!item) return null;
+    const result = (await query.find()) as WixQueryResult;
+    const item = result.items?.[0] ?? result.contacts?.[0] ?? null;
+
+    if (!item) {
+      return null;
+    }
 
     return {
-      id: this.requireContactId(item.id, 'querying contacts'),
+      id: this.requireContactId(item._id ?? item.id, 'querying contacts'),
       revision: item.revision,
     };
   }
 
-  async getContact(
+  async getContactFull(
     installation: Installation,
     contactId: string,
-  ): Promise<WixContactSummary> {
-    const http = await this.getHttpClient(installation);
+  ): Promise<WixContactLike> {
+    const wixClient = this.wixSdkClientService.getClient(installation);
 
-    const { data } = await http.get<WixGetContactResponse>(
-      `${this.contactsBaseUrl}/${contactId}`,
-    );
+    const result = (await wixClient.contacts.getContact(
+      contactId,
+    )) as WixGetResult;
+    const contact = this.extractContact(result);
 
-    const contact = data.contact;
-    if (!contact) {
-      throw new InternalServerErrorException('Wix did not return the contact');
-    }
+    this.getContactId(contact, 'getting a contact');
 
-    return {
-      id: this.requireContactId(contact.id, 'getting contact'),
-      revision: this.requireRevision(contact.revision, 'getting contact'),
-    };
+    return contact;
   }
 
   async createContact(
     installation: Installation,
     payload: WixContactInput,
   ): Promise<WixContactSummary> {
-    const http = await this.getHttpClient(installation);
+    const wixClient = this.wixSdkClientService.getClient(installation);
 
-    const { data } = await http.post<WixCreateContactResponse>(
-      this.contactsBaseUrl,
-      {
-        info: this.toWixContactInfo(payload),
-        allowDuplicates: false,
-      },
-    );
+    const result = (await wixClient.contacts.createContact(
+      this.toWixContactPayload(payload),
+      { allowDuplicates: false },
+    )) as WixCreateOrUpdateResult;
 
-    const contact = data.contact;
-    if (!contact) {
-      throw new InternalServerErrorException(
-        'Wix did not return the created contact',
-      );
-    }
+    const contact = this.extractContact(result);
 
     return {
-      id: this.requireContactId(contact.id, 'creating a contact'),
+      id: this.getContactId(contact, 'creating a contact'),
       revision: contact.revision,
     };
   }
@@ -218,52 +228,20 @@ export class WixContactsService {
     contactId: string,
     payload: WixContactInput,
   ): Promise<WixContactSummary> {
-    const http = await this.getHttpClient(installation);
-    const existing = await this.getContact(installation, contactId);
+    const wixClient = this.wixSdkClientService.getClient(installation);
+    const existing = await this.getContactFull(installation, contactId);
 
-    const { data } = await http.patch<WixUpdateContactResponse>(
-      `${this.contactsBaseUrl}/${contactId}`,
-      {
-        revision: this.requireRevision(
-          existing.revision,
-          'loading contact before update',
-        ),
-        info: this.toWixContactInfo(payload),
-      },
-    );
+    const result = (await wixClient.contacts.updateContact(
+      contactId,
+      this.toWixContactPayload(payload),
+      this.requireRevision(existing.revision, 'loading contact before update'),
+    )) as WixCreateOrUpdateResult;
 
-    const contact = data.contact;
-    if (!contact) {
-      throw new InternalServerErrorException(
-        'Wix did not return the updated contact',
-      );
-    }
+    const contact = this.extractContact(result);
 
     return {
-      id: this.requireContactId(contact.id, 'updating a contact'),
+      id: this.getContactId(contact, 'updating a contact'),
       revision: contact.revision,
     };
-  }
-
-  async getContactFull(
-    installation: Installation,
-    contactId: string,
-  ): Promise<any> {
-    try {
-      const http = await this.getHttpClient(installation);
-      const { data } = await http.get(
-        `https://www.wixapis.com/contacts/v4/contacts/${contactId}`,
-      );
-
-      return data.contact ?? data;
-    } catch (error) {
-      console.error('Error fetching contact from Wix', error, {
-        installationId: installation.id,
-        contactId,
-      });
-      throw new InternalServerErrorException(
-        'Failed to fetch contact from Wix',
-      );
-    }
   }
 }

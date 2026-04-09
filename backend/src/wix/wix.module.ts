@@ -14,6 +14,7 @@ import { WixInstallService } from './wix-install/wix-install.service';
 import { WixWebhookClientService } from './wix-webhook-client/wix-webhook-client.service';
 import { WixWebhookHandlersService } from './wix-webhook-handlers/wix-webhook-handlers.service';
 import { ConfigModule } from '@nestjs/config';
+import { WixSdkClientService } from './wix-sdk-client/wix-sdk-client.service';
 
 @Module({
   imports: [
@@ -34,8 +35,9 @@ import { ConfigModule } from '@nestjs/config';
     WixInstallService,
     WixWebhookClientService,
     WixWebhookHandlersService,
+    WixSdkClientService,
   ],
-  exports: [WixAuthService, WixContactsService],
+  exports: [WixAuthService, WixContactsService, WixSdkClientService],
   controllers: [WixWebhooksController],
 })
 export class WixModule {}

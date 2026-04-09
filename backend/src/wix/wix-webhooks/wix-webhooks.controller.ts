@@ -21,6 +21,7 @@ export class WixWebhooksController {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unknown Wix webhook error';
+
       return res.status(500).send(`Webhook error: ${message}`);
     }
   }

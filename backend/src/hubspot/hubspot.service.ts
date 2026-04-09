@@ -61,14 +61,6 @@ export class HubspotService {
     method: string;
     uri: string;
   }) {
-    this.hubspotSignatureService.verifySignatureV3({
-      signature: input.signature,
-      timestamp: input.timestamp,
-      method: input.method,
-      uri: input.uri,
-      body: input.rawBody,
-    });
-
     const events = Array.isArray(input.body) ? input.body : [input.body];
 
     const results: HubspotWebhookResult[] = [];
