@@ -17,8 +17,18 @@ export class AuthService {
     private readonly cryptoService: CryptoService,
   ) {}
 
-  async getStartUrl() {
-    const installation = await this.ensureDemoInstallation();
+  async getStartUrl(installationId: string) {
+    if (!installationId) {
+      throw new BadRequestException('installationId is required');
+    }
+
+    const installation = await this.installationRepo.findOne({
+      where: { id: installationId },
+    });
+
+    if (!installation) {
+      throw new BadRequestException('Installation not found');
+    }
 
     const statePayload: HubSpotOAuthState = {
       installationId: installation.id,
@@ -69,8 +79,18 @@ export class AuthService {
     return installation;
   }
 
-  async getStatus() {
-    const installation = await this.ensureDemoInstallation();
+  async getStatus(installationId: string) {
+    if (!installationId) {
+      throw new BadRequestException('installationId is required');
+    }
+
+    const installation = await this.installationRepo.findOne({
+      where: { id: installationId },
+    });
+
+    if (!installation) {
+      throw new BadRequestException('Installation not found');
+    }
 
     return {
       installationId: installation.id,
@@ -83,8 +103,18 @@ export class AuthService {
     };
   }
 
-  async disconnect() {
-    const installation = await this.ensureDemoInstallation();
+  async disconnect(installationId: string) {
+    if (!installationId) {
+      throw new BadRequestException('installationId is required');
+    }
+
+    const installation = await this.installationRepo.findOne({
+      where: { id: installationId },
+    });
+
+    if (!installation) {
+      throw new BadRequestException('Installation not found');
+    }
 
     installation.hubspotAccessTokenEnc = null;
     installation.hubspotRefreshTokenEnc = null;

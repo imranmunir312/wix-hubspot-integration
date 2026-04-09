@@ -7,15 +7,17 @@ import { ContactLink } from '../contact-links/contact-link.entity';
 import { WixAuthService } from './wix-auth/wix-auth.service';
 import { WixContactsService } from './wix-contacts/wix-contacts.service';
 import { WixWebhooksService } from './wix-webhooks/wix-webhooks.service';
-import { WixSignatureService } from './wix-signature/wix-signature.service';
 import { WixWebhooksController } from './wix-webhooks/wix-webhooks.controller';
 import { HubspotModule } from '../hubspot/hubspot.module';
 import { SyncModule } from '../sync/sync.module';
-import { WixInstallController } from './wix-install/wix-install.controller';
 import { WixInstallService } from './wix-install/wix-install.service';
+import { WixWebhookClientService } from './wix-webhook-client/wix-webhook-client.service';
+import { WixWebhookHandlersService } from './wix-webhook-handlers/wix-webhook-handlers.service';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
+    ConfigModule,
     TypeOrmModule.forFeature([
       Installation,
       FieldMapping,
@@ -29,10 +31,11 @@ import { WixInstallService } from './wix-install/wix-install.service';
     WixAuthService,
     WixContactsService,
     WixWebhooksService,
-    WixSignatureService,
     WixInstallService,
+    WixWebhookClientService,
+    WixWebhookHandlersService,
   ],
   exports: [WixAuthService, WixContactsService],
-  controllers: [WixWebhooksController, WixInstallController],
+  controllers: [WixWebhooksController],
 })
 export class WixModule {}

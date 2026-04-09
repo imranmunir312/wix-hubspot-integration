@@ -23,6 +23,15 @@ import {
   type WixFieldOption,
 } from "./backend";
 
+const emptyMappingRow = (): MappingRow => ({
+  wixFieldKey: "",
+  hubspotPropertyName: "",
+  direction: "bidirectional",
+  transformType: "none",
+  defaultValue: "",
+  isEnabled: true,
+});
+
 const DashboardPage: FC = () => {
   const [status, setStatus] = useState<HubspotStatus | null>(null);
   const [wixFields, setWixFields] = useState<WixFieldOption[]>([]);
@@ -32,47 +41,43 @@ const DashboardPage: FC = () => {
   const [mappings, setMappings] = useState<MappingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadAll = async () => {
     setLoading(true);
-    try {
-      const statusData = await getHubspotStatus();
-      setStatus(statusData);
+    setErrorMessage(null);
 
-      const wixFieldData = await getWixFields();
+    try {
+      const [statusData, wixFieldData] = await Promise.all([
+        getHubspotStatus(),
+        getWixFields(),
+      ]);
+
+      setStatus(statusData);
       setWixFields(wixFieldData);
 
-      if (statusData.installationId) {
-        const hubspotPropertyData = await getHubspotProperties(
-          statusData.installationId,
-        );
-        setHubspotProperties(hubspotPropertyData);
+      const [hubspotPropertyData, existingMappings] = await Promise.all([
+        getHubspotProperties(),
+        getMappings(),
+      ]);
 
-        const existingMappings = await getMappings(statusData.installationId);
-        setMappings(
-          existingMappings.length > 0
-            ? existingMappings.map((m: any) => ({
-                wixFieldKey: m.wixFieldKey,
-                hubspotPropertyName: m.hubspotPropertyName,
-                direction: m.direction,
-                transformType: m.transformType,
-                defaultValue: m.defaultValue ?? "",
-                isEnabled: m.isEnabled,
-              }))
-            : [
-                {
-                  wixFieldKey: "",
-                  hubspotPropertyName: "",
-                  direction: "bidirectional",
-                  transformType: "none",
-                  defaultValue: "",
-                  isEnabled: true,
-                },
-              ],
-        );
-      }
+      setHubspotProperties(hubspotPropertyData);
+
+      setMappings(
+        existingMappings.length > 0
+          ? existingMappings.map((m: any) => ({
+              wixFieldKey: m.wixFieldKey,
+              hubspotPropertyName: m.hubspotPropertyName,
+              direction: m.direction,
+              transformType: m.transformType,
+              defaultValue: m.defaultValue ?? "",
+              isEnabled: m.isEnabled ?? true,
+            }))
+          : [emptyMappingRow()],
+      );
     } catch (error) {
-      console.error(error);
+      console.error("Failed to load dashboard data", error);
+      setErrorMessage("Failed to load installation or HubSpot data.");
     } finally {
       setLoading(false);
     }
@@ -93,33 +98,24 @@ const DashboardPage: FC = () => {
   };
 
   const addRow = () => {
-    setMappings((prev) => [
-      ...prev,
-      {
-        wixFieldKey: "",
-        hubspotPropertyName: "",
-        direction: "bidirectional",
-        transformType: "none",
-        defaultValue: "",
-        isEnabled: true,
-      },
-    ]);
+    setMappings((prev) => [...prev, emptyMappingRow()]);
   };
 
   const removeRow = (index: number) => {
-    setMappings((prev) => prev.filter((_, i) => i !== index));
+    setMappings((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      return next.length > 0 ? next : [emptyMappingRow()];
+    });
   };
 
   const handleSave = async () => {
-    if (!status?.installationId) return;
-
     const cleaned = mappings.filter(
       (row) => row.wixFieldKey && row.hubspotPropertyName,
     );
 
     setSaving(true);
     try {
-      await saveMappings(status.installationId, cleaned);
+      await saveMappings(cleaned);
       await loadAll();
       alert("Mappings saved successfully");
     } catch (error) {
@@ -127,6 +123,20 @@ const DashboardPage: FC = () => {
       alert("Failed to save mappings");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleConnectHubspot = () => {
+    startHubspotOAuth();
+  };
+
+  const handleDisconnectHubspot = async () => {
+    try {
+      await disconnectHubspot();
+      await loadAll();
+    } catch (error) {
+      console.error(error);
+      alert("Failed to disconnect HubSpot");
     }
   };
 
@@ -143,6 +153,14 @@ const DashboardPage: FC = () => {
         />
         <Page.Content>
           <Box direction="vertical" gap="SP4">
+            {errorMessage && (
+              <Card>
+                <Box padding="24px">
+                  <Text skin="error">{errorMessage}</Text>
+                </Box>
+              </Card>
+            )}
+
             <Card>
               <Box direction="vertical" gap="SP2" padding="24px">
                 <Text>
@@ -160,12 +178,14 @@ const DashboardPage: FC = () => {
                   {status?.connected ? (
                     <Button
                       priority="secondary"
-                      onClick={() => void disconnectHubspot().then(loadAll)}
+                      onClick={() => void handleDisconnectHubspot()}
                     >
                       Disconnect HubSpot
                     </Button>
                   ) : (
-                    <Button onClick={startHubspotOAuth}>Connect HubSpot</Button>
+                    <Button onClick={handleConnectHubspot}>
+                      Connect HubSpot
+                    </Button>
                   )}
 
                   <Button priority="secondary" onClick={() => void loadAll()}>

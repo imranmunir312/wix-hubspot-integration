@@ -1,31 +1,27 @@
-import { Body, Controller, Headers, Post } from '@nestjs/common';
-import { WixWebhooksService } from './wix-webhooks.service';
+import { Body, Controller, Post, Res } from '@nestjs/common';
+import type { Response } from 'express';
+import { WixWebhookClientService } from '../wix-webhook-client/wix-webhook-client.service';
+import { WixWebhookHandlersService } from '../wix-webhook-handlers/wix-webhook-handlers.service';
 
 @Controller('api/webhooks/wix')
 export class WixWebhooksController {
-  constructor(private readonly wixWebhooksService: WixWebhooksService) {}
-
-  @Post('contact-created')
-  async contactCreated(
-    @Body() body: any,
-    @Headers('authorization') authorization?: string,
+  constructor(
+    private readonly wixWebhookClientService: WixWebhookClientService,
+    private readonly wixWebhookHandlersService: WixWebhookHandlersService,
   ) {
-    return this.wixWebhooksService.handleContactEvent({
-      body,
-      authorization,
-      expectedSlug: 'created',
-    });
+    this.wixWebhookHandlersService.initialize();
   }
 
-  @Post('contact-updated')
-  async contactUpdated(
-    @Body() body: any,
-    @Headers('authorization') authorization?: string,
-  ) {
-    return this.wixWebhooksService.handleContactEvent({
-      body,
-      authorization,
-      expectedSlug: 'updated',
-    });
+  @Post()
+  async processWebhook(@Body() rawBody: string, @Res() res: Response) {
+    try {
+      const client = this.wixWebhookClientService.getClient();
+      await client.webhooks.process(rawBody);
+      return res.status(200).send();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown Wix webhook error';
+      return res.status(500).send(`Webhook error: ${message}`);
+    }
   }
 }

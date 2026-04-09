@@ -1,22 +1,16 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Headers } from '@nestjs/common';
 import { InstallationsService } from './installations.service';
 
 @Controller('api/installations')
 export class InstallationsController {
   constructor(private readonly installationsService: InstallationsService) {}
 
-  @Get()
-  getAll() {
-    return this.installationsService.findAll();
-  }
+  @Get('resolve')
+  async resolve(@Headers('authorization') authorization?: string) {
+    if (!authorization) {
+      throw new BadRequestException('Missing authorization header');
+    }
 
-  @Get('me')
-  async getMe() {
-    return this.installationsService.createDemoInstallation();
-  }
-
-  @Post('seed')
-  seed() {
-    return this.installationsService.createDemoInstallation();
+    return this.installationsService.resolveFromWixToken(authorization);
   }
 }

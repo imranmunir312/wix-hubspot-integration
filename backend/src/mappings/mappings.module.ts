@@ -8,6 +8,7 @@ import { Installation } from '../installations/installation.entity';
 import { TypeOrmModule } from '@nestjs/typeorm/dist/typeorm.module';
 import { AuthModule } from '../auth/auth.module';
 import { HubspotModule } from '../hubspot/hubspot.module';
+import { WixAuthModule } from '../wix-auth/wix-auth.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { HubspotModule } from '../hubspot/hubspot.module';
     ]),
     AuthModule,
     HubspotModule,
+    WixAuthModule,
   ],
   providers: [MappingsService],
   controllers: [MappingsController],

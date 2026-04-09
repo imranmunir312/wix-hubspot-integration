@@ -5,9 +5,10 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { HubspotAuthService } from './hubspot-auth.service';
 import { CryptoService } from './crypto.service';
+import { WixAuthModule } from '../wix-auth/wix-auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Installation])],
+  imports: [TypeOrmModule.forFeature([Installation]), WixAuthModule],
   controllers: [AuthController],
   providers: [AuthService, HubspotAuthService, CryptoService],
   exports: [AuthService, CryptoService, HubspotAuthService],

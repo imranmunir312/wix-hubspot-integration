@@ -12,7 +12,6 @@ import { MapperService } from '../../sync/mapper/mapper.service';
 import { HashService } from '../../sync/hash/hash.service';
 import { DedupeService } from '../../sync/dedupe/dedupe.service';
 import { WixContactsService } from '../wix-contacts/wix-contacts.service';
-import { WixSignatureService } from '../wix-signature/wix-signature.service';
 import {
   EntityType,
   SyncSource,
@@ -31,7 +30,6 @@ export class WixWebhooksService {
     @InjectRepository(ContactLink)
     private readonly contactLinkRepo: Repository<ContactLink>,
     private readonly wixContactsService: WixContactsService,
-    private readonly wixSignatureService: WixSignatureService,
     private readonly hubspotTokenService: HubspotTokenService,
     private readonly hubspotContactsService: HubspotContactsService,
     private readonly mapperService: MapperService,
@@ -39,24 +37,14 @@ export class WixWebhooksService {
     private readonly dedupeService: DedupeService,
   ) {}
 
-  async handleContactEvent(input: {
-    body: any;
-    authorization?: string;
-    expectedSlug: 'created' | 'updated';
+  async handleContactEventFromSdk(input: {
+    instanceId: string;
+    wixContactId: string;
+    eventId?: string;
+    slug: 'created' | 'updated';
   }) {
-    const decoded = this.wixSignatureService.verifyAndDecodeJwt(
-      input.authorization,
-    );
-
-    const event = decoded.data?.event;
-    const wixContactId = event?.entityId;
-    const slug = event?.slug;
-    const eventId = event?.id ?? crypto.randomUUID();
-    const instanceId = decoded.instanceId;
-
-    if (!wixContactId || slug !== input.expectedSlug || !instanceId) {
-      throw new BadRequestException('Invalid Wix contact event payload');
-    }
+    const { instanceId, wixContactId, slug } = input;
+    const eventId = input.eventId ?? crypto.randomUUID();
 
     const installation = await this.installationRepo.findOne({
       where: { wixInstanceId: instanceId },
@@ -75,6 +63,25 @@ export class WixWebhooksService {
       where: { installationId: installation.id, isEnabled: true },
       order: { createdAt: 'ASC' },
     });
+
+    if (!mappings.length) {
+      await this.syncEventRepo.save(
+        this.syncEventRepo.create({
+          installationId: installation.id,
+          eventSource: SyncSource.WIX,
+          eventType: `contact.${slug}`,
+          entityType: EntityType.CONTACT,
+          entityId: wixContactId,
+          correlationId: eventId,
+          status: SyncStatus.SKIPPED,
+          payloadRedacted: {
+            reason: 'no_mappings_configured',
+          },
+        }),
+      );
+
+      return { ok: true, skipped: true };
+    }
 
     const wixNormalized = this.normalizeWixContact(wixContact);
     const hubspotPayload = this.mapperService.mapWixToHubSpot(
@@ -95,6 +102,31 @@ export class WixWebhooksService {
           payloadRedacted: {
             reason: 'empty_mapped_payload',
             email: wixNormalized.email ?? null,
+          },
+        }),
+      );
+
+      return { ok: true, skipped: true };
+    }
+
+    const email =
+      typeof hubspotPayload.email === 'string'
+        ? hubspotPayload.email.trim()
+        : '';
+
+    if (!email) {
+      await this.syncEventRepo.save(
+        this.syncEventRepo.create({
+          installationId: installation.id,
+          eventSource: SyncSource.WIX,
+          eventType: `contact.${slug}`,
+          entityType: EntityType.CONTACT,
+          entityId: wixContactId,
+          correlationId: eventId,
+          payloadHash: this.hashService.hashPayload(hubspotPayload),
+          status: SyncStatus.SKIPPED,
+          payloadRedacted: {
+            reason: 'missing_email_mapping',
           },
         }),
       );
@@ -143,13 +175,6 @@ export class WixWebhooksService {
     const accessToken = await this.hubspotTokenService.getValidAccessToken(
       installation.id,
     );
-
-    const email = wixNormalized.email;
-    if (!email) {
-      throw new BadRequestException(
-        'Wix contact email is required for HubSpot upsert',
-      );
-    }
 
     const hubspotContact = await this.hubspotContactsService.upsertByEmail(
       accessToken,

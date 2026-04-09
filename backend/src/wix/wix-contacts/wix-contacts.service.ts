@@ -249,11 +249,21 @@ export class WixContactsService {
     installation: Installation,
     contactId: string,
   ): Promise<any> {
-    const http = await this.getHttpClient(installation);
-    const { data } = await http.get(
-      `https://www.wixapis.com/contacts/v4/contacts/${contactId}`,
-    );
+    try {
+      const http = await this.getHttpClient(installation);
+      const { data } = await http.get(
+        `https://www.wixapis.com/contacts/v4/contacts/${contactId}`,
+      );
 
-    return data.contact ?? data;
+      return data.contact ?? data;
+    } catch (error) {
+      console.error('Error fetching contact from Wix', error, {
+        installationId: installation.id,
+        contactId,
+      });
+      throw new InternalServerErrorException(
+        'Failed to fetch contact from Wix',
+      );
+    }
   }
 }

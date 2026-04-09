@@ -1,8 +1,12 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { MappingsService } from './mappings.service';
 import { SaveMappingsDto } from './dto/save-mappings.dto';
+import { WixInstallationGuard } from '../wix-auth/wix-installation/wix-installation.guard';
+import { CurrentInstallation } from '../wix-auth/current-installation/current-installation.decorator';
+import { Installation } from '../installations/installation.entity';
 
 @Controller('api/mappings')
+@UseGuards(WixInstallationGuard)
 export class MappingsController {
   constructor(private readonly mappingsService: MappingsService) {}
 
@@ -12,20 +16,22 @@ export class MappingsController {
   }
 
   @Get('options/hubspot-properties')
-  async getHubSpotProperties(@Query('installationId') installationId: string) {
-    return this.mappingsService.getHubSpotProperties(installationId);
+  async getHubSpotProperties(
+    @CurrentInstallation() installation: Installation,
+  ) {
+    return this.mappingsService.getHubSpotProperties(installation.id);
   }
 
   @Get()
-  async getMappings(@Query('installationId') installationId: string) {
-    return this.mappingsService.getMappings(installationId);
+  async getMappings(@CurrentInstallation() installation: Installation) {
+    return this.mappingsService.getMappings(installation.id);
   }
 
   @Post()
   async saveMappings(
-    @Query('installationId') installationId: string,
+    @CurrentInstallation() installation: Installation,
     @Body() dto: SaveMappingsDto,
   ) {
-    return this.mappingsService.saveMappings(installationId, dto);
+    return this.mappingsService.saveMappings(installation.id, dto);
   }
 }
