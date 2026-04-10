@@ -39,3 +39,5 @@ app/.wix/
 # misc
 .tmp/
 .cache/
+.vercel
+.env*.local
