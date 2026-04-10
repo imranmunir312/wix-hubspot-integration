@@ -10,8 +10,17 @@ import { wixClient } from "./wixClient";
 const BASE_URL = import.meta.env.PUBLIC_BACKEND_BASE_URL;
 
 export const useDashboardApi = () => {
-  const authFetch = async (path: string, init?: RequestInit) =>
-    wixClient.fetchWithAuth(`${BASE_URL}${path}`, init);
+  const authFetch = async (path: string, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    headers.set("Cache-Control", "no-cache");
+    headers.set("Pragma", "no-cache");
+
+    return wixClient.fetchWithAuth(`${BASE_URL}${path}`, {
+      ...init,
+      cache: "no-store",
+      headers,
+    });
+  };
 
   const getHubspotStatus = async (): Promise<HubspotStatus> => {
     const response = await authFetch("/api/oauth/hubspot/status");
