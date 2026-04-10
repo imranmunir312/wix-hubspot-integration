@@ -82,7 +82,6 @@ export const useDashboardController = () => {
     try {
       await dashboardApi.saveMappings(toSaveMappingsRequest(mappings));
       await loadDashboard();
-      alert("Mappings saved successfully");
     } catch (error) {
       console.error(error);
       alert("Failed to save mappings");

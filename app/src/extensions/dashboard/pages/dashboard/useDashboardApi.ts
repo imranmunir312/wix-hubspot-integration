@@ -11,13 +11,17 @@ const BASE_URL = import.meta.env.PUBLIC_BACKEND_BASE_URL;
 
 export const useDashboardApi = () => {
   const authFetch = async (path: string, init?: RequestInit) => {
+    const accessToken = await wixClient.dashboard.getAccessToken();
     const headers = new Headers(init?.headers);
+    headers.set("Authorization", accessToken);
     headers.set("Cache-Control", "no-cache");
     headers.set("Pragma", "no-cache");
+    headers.set("Accept", "application/json");
 
-    return wixClient.fetchWithAuth(`${BASE_URL}${path}`, {
+    return fetch(`${BASE_URL}${path}`, {
       ...init,
       cache: "no-store",
+      credentials: "omit",
       headers,
     });
   };
