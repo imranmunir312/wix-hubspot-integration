@@ -53,3 +53,14 @@ export type DashboardSelectOption<TValue extends string = string> = {
 export type DashboardFormValues = {
   mappings: MappingRow[];
 };
+
+export type Logs = {
+  entityType: string;
+  entityId: string;
+  eventSource: string;
+  eventType: string;
+  errorMessage: string;
+  id: string;
+  status: string;
+  createdAt: Date;
+};

@@ -5,9 +5,9 @@ import type {
   DashboardFormValues,
   DashboardSelectOption,
   HubspotStatus,
+  Logs,
   MappingRow,
 } from "./dashboardTypes";
-import { SYNC_DIRECTIONS, TRANSFORM_TYPES } from "./dashboardTypes";
 import {
   createEmptyMappingRow,
   DIRECTION_OPTIONS,
@@ -65,6 +65,9 @@ export const useDashboardController = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [isViewLogs, setIsViewLogs] = useState<boolean>(false);
+  const [logs, setLogs] = useState<Logs[]>([]);
 
   const initialValues = useMemo<DashboardFormValues>(
     () => ({
@@ -276,6 +279,18 @@ export const useDashboardController = () => {
     }
   };
 
+  const handleCloseViewLogsModal = () => {
+    setIsViewLogs(false);
+
+    setLogs([]);
+  };
+
+  const handleOpenViewLogsModal = async () => {
+    setIsViewLogs(true);
+    const logsRaw = await dashboardApi.getEventSyncLogs();
+    setLogs(logsRaw);
+  };
+
   return {
     addMappingRow,
     directionOptions: DIRECTION_OPTIONS,
@@ -308,5 +323,9 @@ export const useDashboardController = () => {
     transformOptions: TRANSFORM_OPTIONS,
     wixFieldOptions,
     wixFieldSearchValues,
+    isViewLogs,
+    handleCloseViewLogsModal,
+    handleOpenViewLogsModal,
+    logs,
   };
 };

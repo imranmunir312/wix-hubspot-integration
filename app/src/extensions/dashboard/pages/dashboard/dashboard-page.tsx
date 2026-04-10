@@ -32,6 +32,7 @@ import { CircleLargeSmall } from "@wix/wix-ui-icons-common";
 import { ConnectHubSpot } from "./ConnectHubSpot";
 import styles from "./dashbaord.module.css";
 import type { MappingRow } from "./dashboardTypes";
+import { LogsTable } from "./LogsTable";
 
 const DashboardPage: FC = () => {
   const {
@@ -63,6 +64,10 @@ const DashboardPage: FC = () => {
     transformOptions,
     wixFieldOptions,
     wixFieldSearchValues,
+    isViewLogs,
+    handleCloseViewLogsModal,
+    handleOpenViewLogsModal,
+    logs,
   } = useDashboardController();
 
   const columns = [
@@ -178,7 +183,7 @@ const DashboardPage: FC = () => {
       ),
     },
     {
-      title: "Conflict Rule",
+      title: "Transform",
       render: (row: MappingRow, index: number) => (
         <Box direction="vertical" gap="SP1">
           <Dropdown
@@ -331,11 +336,20 @@ const DashboardPage: FC = () => {
 
               <Card>
                 <Box direction="vertical" gap="SP3" padding="24px">
-                  <Box direction="vertical">
-                    <Heading size="large">Field Mapping</Heading>
-                    <Text size="medium" color={"#333853"}>
-                      Define how fields sync between systems
-                    </Text>
+                  <Box gap="SP1" className={styles.viewLogs}>
+                    <Box direction="vertical">
+                      <Heading size="large">Field Mapping</Heading>
+                      <Text size="medium" color={"#333853"}>
+                        Define how fields sync between systems
+                      </Text>
+                    </Box>
+                    <Button
+                      skin="dark"
+                      priority="secondary"
+                      onClick={handleOpenViewLogsModal}
+                    >
+                      View Logs
+                    </Button>
                   </Box>
 
                   <Table
@@ -399,6 +413,11 @@ const DashboardPage: FC = () => {
           </Box>
         </Page.Content>
       </Page>
+      <LogsTable
+        isViewLogs={isViewLogs}
+        handleCloseLogs={handleCloseViewLogsModal}
+        logs={logs}
+      />
     </WixDesignSystemProvider>
   );
 };

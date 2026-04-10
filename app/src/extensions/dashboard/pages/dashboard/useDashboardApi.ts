@@ -93,6 +93,17 @@ export const useDashboardApi = () => {
     return data.url;
   };
 
+  const getEventSyncLogs = async () => {
+    const response = await authFetch("/api/sync-events");
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch logs");
+    }
+
+    const data = await response.json();
+    return data;
+  };
+
   return {
     disconnectHubspot,
     getHubspotAuthorizeUrl,
@@ -101,5 +112,6 @@ export const useDashboardApi = () => {
     getMappings,
     getWixFields,
     saveMappings,
+    getEventSyncLogs,
   };
 };
