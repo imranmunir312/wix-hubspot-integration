@@ -1,12 +1,3 @@
 {
-  "routes": [
-    {
-      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|txt))",
-      "dest": "/public/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/api"
-    }
-  ]
+  "routes": [{ "src": "/(.*)", "dest": "/api" }]
 }
