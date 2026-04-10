@@ -12,6 +12,9 @@ import {
 } from "@wix/design-system";
 import { Refresh } from "@wix/wix-ui-icons-common/odeditor";
 import styles from "./connectHubSpot.module.css";
+import wixImg from "../../../../../assets/images/wix.jpg";
+import directionsImg from "../../../../../assets/images/directions.jpg";
+import hubspotImg from "../../../../../assets/images/hubspot.jpg";
 
 export interface IConnectHubSpotProps {
   handleConnectHubspot: () => {};
@@ -56,17 +59,20 @@ export const ConnectHubSpot = ({
                       <Image
                         height={100}
                         width={100}
-                        src="../../../../../assets/images/wix.jpg"
+                        src={wixImg.src}
+                        alt="Wix"
                       />
                       <Image
                         height={40}
                         width={40}
-                        src="../../../../../assets/images/directions.jpg"
+                        src={directionsImg.src}
+                        alt="Directions"
                       />
                       <Image
-                        width={100}
                         height={100}
-                        src="../../../../../assets/images/hubspot.jpg"
+                        width={100}
+                        src={hubspotImg.src}
+                        alt="HubSpot"
                       />
                     </Box>
                     <Box

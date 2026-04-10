@@ -33,29 +33,13 @@ import { ConnectHubSpot } from "./ConnectHubSpot";
 import styles from "./dashbaord.module.css";
 import type { MappingRow } from "./dashboardTypes";
 
-const normalizeSearchValue = (value: unknown) =>
-  value?.toString().trim().toLowerCase() ?? "";
-
-const matchesSearch = (
-  option: { label?: unknown; value?: unknown },
-  searchValue: string,
-) => {
-  const normalizedSearchValue = normalizeSearchValue(searchValue);
-
-  if (!normalizedSearchValue) {
-    return true;
-  }
-
-  return [option.label, option.value].some((field) =>
-    normalizeSearchValue(field).includes(normalizedSearchValue),
-  );
-};
-
 const DashboardPage: FC = () => {
   const {
     addMappingRow,
     directionOptions,
+    discardChanges,
     errorMessage,
+    getFieldError,
     handleConnectHubspot,
     handleDirectionSelect,
     handleDisconnectHubspot,
@@ -67,8 +51,11 @@ const DashboardPage: FC = () => {
     handleWixFieldSelect,
     hubspotPropertyOptions,
     hubspotPropertySearchValues,
+    isDirty,
     loading,
     mappings,
+    mappingsError,
+    matchesSearch,
     refreshDashboard,
     removeMappingRow,
     saving,
@@ -82,30 +69,39 @@ const DashboardPage: FC = () => {
     {
       title: "Wix Field",
       render: (row: MappingRow, index: number) => (
-        <AutoComplete
-          options={wixFieldOptions}
-          value={row.wixFieldKey ?? ""}
-          predicate={(option) => matchesSearch(option, row.wixFieldKey ?? "")}
-          onChange={(event) =>
-            handleWixFieldSearchChange(index, event.target.value)
-          }
-          onSelect={(option) => {
-            const selectedValue = option.value?.toString();
-
-            if (!selectedValue) {
-              return;
+        <Box direction="vertical" gap="SP1">
+          <AutoComplete
+            options={wixFieldOptions}
+            value={wixFieldSearchValues[index] ?? ""}
+            predicate={(option) =>
+              matchesSearch(option, wixFieldSearchValues[index] ?? "")
             }
+            onChange={(event) =>
+              handleWixFieldSearchChange(index, event.target.value)
+            }
+            onSelect={(option) => {
+              const selectedValue = option.value?.toString();
 
-            handleWixFieldSelect(
-              index,
-              selectedValue,
-              option.label?.toString() ?? selectedValue,
-            );
-          }}
-          emptyStateMessage="No Wix fields found"
-          highlight
-          placeholder="Select Wix field"
-        />
+              if (!selectedValue) {
+                return;
+              }
+
+              handleWixFieldSelect(
+                index,
+                selectedValue,
+                option.label?.toString() ?? selectedValue,
+              );
+            }}
+            emptyStateMessage="No Wix fields found"
+            highlight
+            placeholder="Select Wix field"
+          />
+          {getFieldError(index, "wixFieldKey") && (
+            <Text size="small" skin="error">
+              {getFieldError(index, "wixFieldKey")}
+            </Text>
+          )}
+        </Box>
       ),
     },
     {
@@ -123,64 +119,85 @@ const DashboardPage: FC = () => {
     {
       title: "HubSpot Field",
       render: (row: MappingRow, index: number) => (
-        <AutoComplete
-          options={hubspotPropertyOptions}
-          value={row.hubspotPropertyName ?? ""}
-          predicate={(option) =>
-            matchesSearch(option, row.hubspotPropertyName ?? "")
-          }
-          onChange={(event) =>
-            handleHubspotPropertySearchChange(index, event.target.value)
-          }
-          onSelect={(option) => {
-            const selectedValue = option.value?.toString();
-
-            if (!selectedValue) {
-              return;
+        <Box direction="vertical" gap="SP1">
+          <AutoComplete
+            options={hubspotPropertyOptions}
+            value={hubspotPropertySearchValues[index] ?? ""}
+            predicate={(option) =>
+              matchesSearch(option, hubspotPropertySearchValues[index] ?? "")
             }
+            onChange={(event) =>
+              handleHubspotPropertySearchChange(index, event.target.value)
+            }
+            onSelect={(option) => {
+              const selectedValue = option.value?.toString();
 
-            handleHubspotPropertySelect(
-              index,
-              selectedValue,
-              option.label?.toString() ?? selectedValue,
-            );
-          }}
-          emptyStateMessage="No HubSpot properties found"
-          highlight
-          placeholder="Select HubSpot property"
-        />
+              if (!selectedValue) {
+                return;
+              }
+
+              handleHubspotPropertySelect(
+                index,
+                selectedValue,
+                option.label?.toString() ?? selectedValue,
+              );
+            }}
+            emptyStateMessage="No HubSpot properties found"
+            highlight
+            placeholder="Select HubSpot property"
+          />
+          {getFieldError(index, "hubspotPropertyName") && (
+            <Text size="small" skin="error">
+              {getFieldError(index, "hubspotPropertyName")}
+            </Text>
+          )}
+        </Box>
       ),
     },
     {
       title: "Sync Type",
       render: (row: MappingRow, index: number) => (
-        <Dropdown
-          options={directionOptions}
-          selectedId={row.direction}
-          onSelect={(option) =>
-            handleDirectionSelect(
-              index,
-              option.value as (typeof row)["direction"],
-            )
-          }
-          placeholder="Direction of syncing"
-        />
+        <Box direction="vertical" gap="SP1">
+          <Dropdown
+            options={directionOptions}
+            selectedId={row.direction}
+            onSelect={(option) =>
+              handleDirectionSelect(
+                index,
+                option.value as (typeof row)["direction"],
+              )
+            }
+            placeholder="Direction of syncing"
+          />
+          {getFieldError(index, "direction") && (
+            <Text size="small" skin="error">
+              {getFieldError(index, "direction")}
+            </Text>
+          )}
+        </Box>
       ),
     },
     {
       title: "Conflict Rule",
       render: (row: MappingRow, index: number) => (
-        <Dropdown
-          options={transformOptions}
-          selectedId={row.transformType}
-          onSelect={(option) =>
-            handleTransformTypeSelect(
-              index,
-              option.value as (typeof row)["transformType"],
-            )
-          }
-          placeholder="Data transformation"
-        />
+        <Box direction="vertical" gap="SP1">
+          <Dropdown
+            options={transformOptions}
+            selectedId={row.transformType}
+            onSelect={(option) =>
+              handleTransformTypeSelect(
+                index,
+                option.value as (typeof row)["transformType"],
+              )
+            }
+            placeholder="Data transformation"
+          />
+          {getFieldError(index, "transformType") && (
+            <Text size="small" skin="error">
+              {getFieldError(index, "transformType")}
+            </Text>
+          )}
+        </Box>
       ),
     },
     {
@@ -329,6 +346,12 @@ const DashboardPage: FC = () => {
                     <Table.Content />
                   </Table>
 
+                  {mappingsError && (
+                    <Text size="small" skin="error">
+                      {mappingsError}
+                    </Text>
+                  )}
+
                   <Box gap="SP2">
                     <TextButton
                       priority="secondary"
@@ -354,11 +377,20 @@ const DashboardPage: FC = () => {
                 display="flex"
                 className={styles.footerSticky}
               >
-                <Text>Unsaved Changes</Text>
+                <Text>{isDirty ? "Unsaved Changes" : "All changes saved"}</Text>
 
                 <Box gap="SP3" justifyItems="center" placeItems="center">
-                  <Button priority="secondary">Discard Changes</Button>
-                  <Button onClick={() => void handleSaveMappings()}>
+                  <Button
+                    priority="secondary"
+                    disabled={!isDirty || saving}
+                    onClick={discardChanges}
+                  >
+                    Discard Changes
+                  </Button>
+                  <Button
+                    disabled={!isDirty || saving}
+                    onClick={() => void handleSaveMappings()}
+                  >
                     {saving ? "Saving..." : "Save Changes"}
                   </Button>
                 </Box>

@@ -49,3 +49,7 @@ export type DashboardSelectOption<TValue extends string = string> = {
   value: TValue;
   label: string;
 };
+
+export type DashboardFormValues = {
+  mappings: MappingRow[];
+};

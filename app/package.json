@@ -21,7 +21,9 @@
     "@wix/essentials": "^0.1.23",
     "astro": "^5.8.0",
     "axios": "^1.15.0",
-    "typescript": "^5.8.3"
+    "formik": "^2.4.9",
+    "typescript": "^5.8.3",
+    "yup": "^1.7.1"
   },
   "devDependencies": {
     "@astrojs/cloudflare": "^12.5.3",

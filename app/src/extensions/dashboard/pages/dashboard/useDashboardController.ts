@@ -1,12 +1,13 @@
-import type { Dispatch, SetStateAction } from "react";
-import { useEffect, useState } from "react";
+import { getIn, useFormik } from "formik";
+import { useEffect, useMemo, useState } from "react";
+import * as yup from "yup";
 import type {
+  DashboardFormValues,
   DashboardSelectOption,
   HubspotStatus,
-  MappingDirection,
   MappingRow,
-  MappingTransformType,
 } from "./dashboardTypes";
+import { SYNC_DIRECTIONS, TRANSFORM_TYPES } from "./dashboardTypes";
 import {
   createEmptyMappingRow,
   DIRECTION_OPTIONS,
@@ -19,18 +20,43 @@ import {
   TRANSFORM_OPTIONS,
 } from "./dashboardTransformer";
 import { useDashboardApi } from "./useDashboardApi";
+import { validationSchema } from "./mappings.validation";
+
+const normalizeSearchValue = (value: unknown) =>
+  value?.toString().trim().toLowerCase() ?? "";
+
+const matchesSearch = (
+  option: { label?: unknown; value?: unknown },
+  searchValue: string,
+) => {
+  const normalizedSearchValue = normalizeSearchValue(searchValue);
+
+  if (!normalizedSearchValue) {
+    return true;
+  }
+
+  return [option.label, option.value].some((field) =>
+    normalizeSearchValue(field).includes(normalizedSearchValue),
+  );
+};
 
 export const useDashboardController = () => {
   const dashboardApi = useDashboardApi();
 
   const [status, setStatus] = useState<HubspotStatus | null>(null);
-  const [mappings, setMappings] = useState<MappingRow[]>([]);
-  const [wixFieldOptions, setWixFieldOptions] = useState<DashboardSelectOption[]>(
-    [],
-  );
+  const [initialMappings, setInitialMappings] = useState<MappingRow[]>([]);
+  const [wixFieldOptions, setWixFieldOptions] = useState<
+    DashboardSelectOption[]
+  >([]);
   const [hubspotPropertyOptions, setHubspotPropertyOptions] = useState<
     DashboardSelectOption[]
   >([]);
+  const [initialWixFieldSearchValues, setInitialWixFieldSearchValues] =
+    useState<string[]>([]);
+  const [
+    initialHubspotPropertySearchValues,
+    setInitialHubspotPropertySearchValues,
+  ] = useState<string[]>([]);
   const [wixFieldSearchValues, setWixFieldSearchValues] = useState<string[]>(
     [],
   );
@@ -40,29 +66,36 @@ export const useDashboardController = () => {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const updateSearchValue = (
-    setter: Dispatch<SetStateAction<string[]>>,
-    index: number,
-    value: string,
-  ) => {
-    setter((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
-    });
+  const initialValues = useMemo<DashboardFormValues>(
+    () => ({
+      mappings: initialMappings,
+    }),
+    [initialMappings],
+  );
+
+  const handleSaveMappingsRequest = async (mappings: MappingRow[]) => {
+    setSaving(true);
+
+    try {
+      await dashboardApi.saveMappings(toSaveMappingsRequest(mappings));
+      await loadDashboard();
+      alert("Mappings saved successfully");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to save mappings");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const updateMappingRow = <K extends keyof MappingRow>(
-    index: number,
-    key: K,
-    value: MappingRow[K],
-  ) => {
-    setMappings((prev) =>
-      prev.map((row, rowIndex) =>
-        rowIndex === index ? { ...row, [key]: value } : row,
-      ),
-    );
-  };
+  const formik = useFormik<DashboardFormValues>({
+    enableReinitialize: true,
+    initialValues,
+    validationSchema,
+    onSubmit: async (values) => {
+      await handleSaveMappingsRequest(values.mappings);
+    },
+  });
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -80,17 +113,23 @@ export const useDashboardController = () => {
       ]);
 
       const dashboardMappings = toDashboardMappings(mappingData);
+      const nextWixFieldSearchValues = toWixFieldSearchValues(
+        dashboardMappings,
+        wixFieldData,
+      );
+      const nextHubspotPropertySearchValues = toHubspotPropertySearchValues(
+        dashboardMappings,
+        hubspotPropertyData,
+      );
 
       setStatus(statusData);
-      setMappings(dashboardMappings);
+      setInitialMappings(dashboardMappings);
       setWixFieldOptions(toWixFieldOptions(wixFieldData));
       setHubspotPropertyOptions(toHubspotPropertyOptions(hubspotPropertyData));
-      setWixFieldSearchValues(
-        toWixFieldSearchValues(dashboardMappings, wixFieldData),
-      );
-      setHubspotPropertySearchValues(
-        toHubspotPropertySearchValues(dashboardMappings, hubspotPropertyData),
-      );
+      setInitialWixFieldSearchValues(nextWixFieldSearchValues);
+      setInitialHubspotPropertySearchValues(nextHubspotPropertySearchValues);
+      setWixFieldSearchValues(nextWixFieldSearchValues);
+      setHubspotPropertySearchValues(nextHubspotPropertySearchValues);
     } catch (error) {
       console.error("Failed to load dashboard data", error);
       setErrorMessage("Failed to load installation or HubSpot data.");
@@ -103,17 +142,45 @@ export const useDashboardController = () => {
     void loadDashboard();
   }, []);
 
+  const updateSearchValue = (
+    setter: typeof setWixFieldSearchValues,
+    index: number,
+    value: string,
+  ) => {
+    setter((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  };
+
+  const updateMappingRow = <K extends keyof MappingRow>(
+    index: number,
+    key: K,
+    value: MappingRow[K],
+  ) => {
+    void formik.setFieldValue(`mappings.${index}.${key}`, value);
+    void formik.setFieldTouched(`mappings.${index}.${key}`, true, false);
+  };
+
   const addMappingRow = () => {
-    setMappings((prev) => [...prev, createEmptyMappingRow()]);
+    void formik.setFieldValue("mappings", [
+      ...formik.values.mappings,
+      createEmptyMappingRow(),
+    ]);
     setWixFieldSearchValues((prev) => [...prev, ""]);
     setHubspotPropertySearchValues((prev) => [...prev, ""]);
   };
 
   const removeMappingRow = (index: number) => {
-    setMappings((prev) => {
-      const next = prev.filter((_, rowIndex) => rowIndex !== index);
-      return next.length > 0 ? next : [createEmptyMappingRow()];
-    });
+    const nextMappings = formik.values.mappings.filter(
+      (_, rowIndex) => rowIndex !== index,
+    );
+
+    void formik.setFieldValue(
+      "mappings",
+      nextMappings.length > 0 ? nextMappings : [createEmptyMappingRow()],
+    );
 
     setWixFieldSearchValues((prev) => {
       const next = prev.filter((_, rowIndex) => rowIndex !== index);
@@ -130,10 +197,7 @@ export const useDashboardController = () => {
     updateSearchValue(setWixFieldSearchValues, index, value);
   };
 
-  const handleHubspotPropertySearchChange = (
-    index: number,
-    value: string,
-  ) => {
+  const handleHubspotPropertySearchChange = (index: number, value: string) => {
     updateSearchValue(setHubspotPropertySearchValues, index, value);
   };
 
@@ -157,31 +221,39 @@ export const useDashboardController = () => {
 
   const handleDirectionSelect = (
     index: number,
-    direction: MappingDirection,
+    direction: MappingRow["direction"],
   ) => {
     updateMappingRow(index, "direction", direction);
   };
 
   const handleTransformTypeSelect = (
     index: number,
-    transformType: MappingTransformType,
+    transformType: MappingRow["transformType"],
   ) => {
     updateMappingRow(index, "transformType", transformType);
   };
 
-  const handleSaveMappings = async () => {
-    setSaving(true);
+  const handleSaveMappings = () => formik.submitForm();
 
-    try {
-      await dashboardApi.saveMappings(toSaveMappingsRequest(mappings));
-      await loadDashboard();
-      alert("Mappings saved successfully");
-    } catch (error) {
-      console.error(error);
-      alert("Failed to save mappings");
-    } finally {
-      setSaving(false);
+  const discardChanges = () => {
+    formik.resetForm();
+    setWixFieldSearchValues(initialWixFieldSearchValues);
+    setHubspotPropertySearchValues(initialHubspotPropertySearchValues);
+  };
+
+  const getFieldError = (
+    index: number,
+    key: keyof MappingRow,
+  ): string | undefined => {
+    const fieldPath = `mappings.${index}.${key}`;
+    const error = getIn(formik.errors, fieldPath);
+    const touched = getIn(formik.touched, fieldPath);
+
+    if (!error || (!touched && formik.submitCount === 0)) {
+      return undefined;
     }
+
+    return error as string;
   };
 
   const handleConnectHubspot = async () => {
@@ -205,8 +277,11 @@ export const useDashboardController = () => {
   };
 
   return {
+    addMappingRow,
     directionOptions: DIRECTION_OPTIONS,
+    discardChanges,
     errorMessage,
+    getFieldError,
     handleConnectHubspot,
     handleDirectionSelect,
     handleDisconnectHubspot,
@@ -218,8 +293,14 @@ export const useDashboardController = () => {
     handleWixFieldSelect,
     hubspotPropertyOptions,
     hubspotPropertySearchValues,
+    isDirty: formik.dirty,
     loading,
-    mappings,
+    mappings: formik.values.mappings,
+    mappingsError:
+      typeof formik.errors.mappings === "string" && formik.submitCount > 0
+        ? formik.errors.mappings
+        : undefined,
+    matchesSearch,
     refreshDashboard: loadDashboard,
     removeMappingRow,
     saving,
@@ -227,6 +308,5 @@ export const useDashboardController = () => {
     transformOptions: TRANSFORM_OPTIONS,
     wixFieldOptions,
     wixFieldSearchValues,
-    addMappingRow,
   };
 };
