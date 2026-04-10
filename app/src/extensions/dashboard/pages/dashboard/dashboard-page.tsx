@@ -65,6 +65,8 @@ const DashboardPage: FC = () => {
     wixFieldOptions,
     wixFieldSearchValues,
     isViewLogs,
+    isLogsLoading,
+    logsErrorMessage,
     handleCloseViewLogsModal,
     handleOpenViewLogsModal,
     logs,
@@ -415,6 +417,8 @@ const DashboardPage: FC = () => {
       </Page>
       <LogsTable
         isViewLogs={isViewLogs}
+        isLoading={isLogsLoading}
+        errorMessage={logsErrorMessage}
         handleCloseLogs={handleCloseViewLogsModal}
         logs={logs}
       />

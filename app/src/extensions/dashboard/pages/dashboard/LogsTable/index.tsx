@@ -1,15 +1,25 @@
-import { Box, CustomModalLayout, Modal, Text, Table } from "@wix/design-system";
+import {
+  Box,
+  CustomModalLayout,
+  Loader,
+  Modal,
+  Text,
+  Table,
+} from "@wix/design-system";
 import type { Logs } from "../dashboardTypes";
-import styles from "./logsTable.module.css";
 
 export interface ILogsTableProps {
   isViewLogs: boolean;
+  isLoading: boolean;
+  errorMessage?: string | null;
   handleCloseLogs: () => void;
   logs: Logs[];
 }
 
 export const LogsTable = ({
   isViewLogs,
+  isLoading,
+  errorMessage,
   handleCloseLogs,
   logs,
 }: ILogsTableProps) => {
@@ -29,14 +39,45 @@ export const LogsTable = ({
   ];
 
   return (
-    <Modal isOpen={isViewLogs}>
-      <Box maxHeight={800} minHeight={800} className={styles.tableWidthLogs}>
-        <CustomModalLayout
-          onCloseButtonClick={handleCloseLogs}
-          title="Logs"
-          removeContentPadding
-          className={styles.tableWidthLogs}
-        >
+    <Modal isOpen={isViewLogs} screen="desktop">
+      <CustomModalLayout
+        onCloseButtonClick={handleCloseLogs}
+        title="Logs"
+        removeContentPadding
+        width="min(1200px, 90vw)"
+        maxHeight="800px"
+      >
+        {isLoading ? (
+          <Box
+            height={"100%"}
+            minHeight="320px"
+            align="center"
+            verticalAlign="middle"
+            direction="vertical"
+          >
+            <Loader />
+          </Box>
+        ) : errorMessage ? (
+          <Box
+            minHeight="320px"
+            align="center"
+            verticalAlign="middle"
+            direction="vertical"
+            padding="24px"
+          >
+            <Text skin="error">{errorMessage}</Text>
+          </Box>
+        ) : logs.length === 0 ? (
+          <Box
+            minHeight="320px"
+            align="center"
+            verticalAlign="middle"
+            direction="vertical"
+            padding="24px"
+          >
+            <Text>No logs found.</Text>
+          </Box>
+        ) : (
           <Table
             data={logs}
             columns={columns}
@@ -45,8 +86,8 @@ export const LogsTable = ({
           >
             <Table.Content />
           </Table>
-        </CustomModalLayout>
-      </Box>
+        )}
+      </CustomModalLayout>
     </Modal>
   );
 };

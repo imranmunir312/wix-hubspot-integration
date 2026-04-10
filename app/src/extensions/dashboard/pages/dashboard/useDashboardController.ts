@@ -67,6 +67,8 @@ export const useDashboardController = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [isViewLogs, setIsViewLogs] = useState<boolean>(false);
+  const [isLogsLoading, setIsLogsLoading] = useState(false);
+  const [logsErrorMessage, setLogsErrorMessage] = useState<string | null>(null);
   const [logs, setLogs] = useState<Logs[]>([]);
 
   const initialValues = useMemo<DashboardFormValues>(
@@ -280,14 +282,26 @@ export const useDashboardController = () => {
 
   const handleCloseViewLogsModal = () => {
     setIsViewLogs(false);
-
+    setIsLogsLoading(false);
+    setLogsErrorMessage(null);
     setLogs([]);
   };
 
   const handleOpenViewLogsModal = async () => {
     setIsViewLogs(true);
-    const logsRaw = await dashboardApi.getEventSyncLogs();
-    setLogs(logsRaw);
+    setIsLogsLoading(true);
+    setLogsErrorMessage(null);
+    setLogs([]);
+
+    try {
+      const logsRaw = await dashboardApi.getEventSyncLogs();
+      setLogs(logsRaw);
+    } catch (error) {
+      console.error("Failed to fetch logs", error);
+      setLogsErrorMessage("Failed to load logs.");
+    } finally {
+      setIsLogsLoading(false);
+    }
   };
 
   return {
@@ -323,6 +337,8 @@ export const useDashboardController = () => {
     wixFieldOptions,
     wixFieldSearchValues,
     isViewLogs,
+    isLogsLoading,
+    logsErrorMessage,
     handleCloseViewLogsModal,
     handleOpenViewLogsModal,
     logs,
