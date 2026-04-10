@@ -1,5 +1,5 @@
 (function () {
-  var BACKEND_BASE_URL = 'https://71fc-103-23-253-216.ngrok-free.app';
+  var BACKEND_BASE_URL = 'https://wix-hubspot-integration-beta.vercel.app';
   var sentKeys = {};
 
   function getStoredAttribution() {
