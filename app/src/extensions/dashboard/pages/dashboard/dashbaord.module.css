@@ -1,0 +1,8 @@
+.headerDesign {
+  justify-content: space-between !important;
+}
+
+.footerSticky {
+  justify-content: space-between !important;
+  align-items: center;
+}

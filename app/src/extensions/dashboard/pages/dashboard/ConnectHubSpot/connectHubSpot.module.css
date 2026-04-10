@@ -1,0 +1,10 @@
+.textAlignCenter {
+  text-align: center !important;
+}
+
+.footerNoteCenter {
+  text-align: center;
+  width: 100%;
+  justify-content: center !important;
+  text-transform: uppercase;
+}

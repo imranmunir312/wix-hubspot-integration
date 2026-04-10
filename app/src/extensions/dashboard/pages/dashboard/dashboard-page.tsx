@@ -4,14 +4,34 @@ import {
   Box,
   Button,
   Card,
+  CustomModalLayout,
+  Divider,
   Dropdown,
+  Heading,
+  Image,
   Loader,
+  Modal,
   Page,
+  Table,
+  TableActionCell,
   Text,
+  TextButton,
   WixDesignSystemProvider,
 } from "@wix/design-system";
 import "@wix/design-system/styles.global.css";
+import {
+  Refresh,
+  Delete,
+  Add,
+  ArrowRight,
+  ArrowLeftRight,
+  ArrowLeft,
+} from "@wix/wix-ui-icons-common/odeditor";
 import { useDashboardController } from "./useDashboardController";
+import { CircleLargeSmall } from "@wix/wix-ui-icons-common";
+import { ConnectHubSpot } from "./ConnectHubSpot";
+import styles from "./dashbaord.module.css";
+import type { MappingRow } from "./dashboardTypes";
 
 const normalizeSearchValue = (value: unknown) =>
   value?.toString().trim().toLowerCase() ?? "";
@@ -58,6 +78,133 @@ const DashboardPage: FC = () => {
     wixFieldSearchValues,
   } = useDashboardController();
 
+  const columns = [
+    {
+      title: "Wix Field",
+      render: (row: MappingRow, index: number) => (
+        <AutoComplete
+          options={wixFieldOptions}
+          value={row.wixFieldKey ?? ""}
+          predicate={(option) => matchesSearch(option, row.wixFieldKey ?? "")}
+          onChange={(event) =>
+            handleWixFieldSearchChange(index, event.target.value)
+          }
+          onSelect={(option) => {
+            const selectedValue = option.value?.toString();
+
+            if (!selectedValue) {
+              return;
+            }
+
+            handleWixFieldSelect(
+              index,
+              selectedValue,
+              option.label?.toString() ?? selectedValue,
+            );
+          }}
+          emptyStateMessage="No Wix fields found"
+          highlight
+          placeholder="Select Wix field"
+        />
+      ),
+    },
+    {
+      title: "",
+      width: 24,
+      render: (row: MappingRow) =>
+        row.direction === "bidirectional" ? (
+          <ArrowLeftRight />
+        ) : row.direction === "wix_to_hubspot" ? (
+          <ArrowRight />
+        ) : (
+          <ArrowLeft />
+        ),
+    },
+    {
+      title: "HubSpot Field",
+      render: (row: MappingRow, index: number) => (
+        <AutoComplete
+          options={hubspotPropertyOptions}
+          value={row.hubspotPropertyName ?? ""}
+          predicate={(option) =>
+            matchesSearch(option, row.hubspotPropertyName ?? "")
+          }
+          onChange={(event) =>
+            handleHubspotPropertySearchChange(index, event.target.value)
+          }
+          onSelect={(option) => {
+            const selectedValue = option.value?.toString();
+
+            if (!selectedValue) {
+              return;
+            }
+
+            handleHubspotPropertySelect(
+              index,
+              selectedValue,
+              option.label?.toString() ?? selectedValue,
+            );
+          }}
+          emptyStateMessage="No HubSpot properties found"
+          highlight
+          placeholder="Select HubSpot property"
+        />
+      ),
+    },
+    {
+      title: "Sync Type",
+      render: (row: MappingRow, index: number) => (
+        <Dropdown
+          options={directionOptions}
+          selectedId={row.direction}
+          onSelect={(option) =>
+            handleDirectionSelect(
+              index,
+              option.value as (typeof row)["direction"],
+            )
+          }
+          placeholder="Direction of syncing"
+        />
+      ),
+    },
+    {
+      title: "Conflict Rule",
+      render: (row: MappingRow, index: number) => (
+        <Dropdown
+          options={transformOptions}
+          selectedId={row.transformType}
+          onSelect={(option) =>
+            handleTransformTypeSelect(
+              index,
+              option.value as (typeof row)["transformType"],
+            )
+          }
+          placeholder="Data transformation"
+        />
+      ),
+    },
+    {
+      render: (row: MappingRow, index: number) => (
+        <TableActionCell
+          size="medium"
+          secondaryActions={[
+            {
+              text: "Delete",
+              icon: <Delete />,
+              onClick: () => removeMappingRow(index),
+              skin: "destructive",
+            },
+          ]}
+          numOfVisibleSecondaryActions={1}
+          moreActionsTooltipText="Delete"
+          alwaysShowSecondaryActions
+        />
+      ),
+      width: 50,
+      title: "Actions",
+    },
+  ];
+
   if (loading) {
     return (
       <WixDesignSystemProvider features={{ newColorsBranding: true }}>
@@ -79,169 +226,140 @@ const DashboardPage: FC = () => {
     );
   }
 
+  if (!status?.connected) {
+    return (
+      <ConnectHubSpot
+        refreshDashboard={refreshDashboard}
+        handleConnectHubspot={handleConnectHubspot}
+      />
+    );
+  }
+
   return (
     <WixDesignSystemProvider features={{ newColorsBranding: true }}>
       <Page>
         <Page.Header
           title="HubSpot Integration"
-          subtitle="Connect HubSpot and configure field mappings."
+          subtitle="Connect HubSpot and configure how your data syncs"
         />
         <Page.Content>
-          <Box direction="vertical" gap="SP4">
-            {errorMessage && (
+          <Box direction="vertical" gap={"SP4"} height={"calc(100% - 125px)"}>
+            <Box direction="vertical" gap="SP4">
+              {errorMessage && (
+                <Card>
+                  <Box padding="24px">
+                    <Text skin="error">{errorMessage}</Text>
+                  </Box>
+                </Card>
+              )}
+
               <Card>
-                <Box padding="24px">
-                  <Text skin="error">{errorMessage}</Text>
+                <Box
+                  direction="horizontal"
+                  gap="SP2"
+                  padding="24px"
+                  display="flex"
+                  className={styles.headerDesign}
+                >
+                  <Box gap="SP3" justifyItems="center" placeItems="center">
+                    <Box gap="SP1" justifyItems="center" placeItems="center">
+                      <CircleLargeSmall
+                        color="green"
+                        fill="green"
+                        stroke="green"
+                        strokeWidth={3}
+                      />
+                      <Heading size="large">
+                        {status?.connected ? "Connected" : "Disconnected"}
+                      </Heading>
+                    </Box>
+
+                    {status?.hubspotPortalId && (
+                      <>
+                        <Divider direction="vertical" />
+                        <Text size="small">
+                          Portal ID: {status.hubspotPortalId}
+                        </Text>
+                      </>
+                    )}
+                  </Box>
+
+                  <Box gap="SP3" justifyItems="center" placeItems="center">
+                    <TextButton
+                      size="medium"
+                      prefixIcon={<Refresh />}
+                      style={{
+                        fontWeight: 500,
+                      }}
+                      onClick={() => void refreshDashboard()}
+                    >
+                      Refresh Status
+                    </TextButton>
+                    {status?.connected ? (
+                      <Button
+                        skin="destructive"
+                        priority="secondary"
+                        onClick={() => void handleDisconnectHubspot()}
+                      >
+                        Disconnect HubSpot
+                      </Button>
+                    ) : (
+                      <Button onClick={() => void handleConnectHubspot()}>
+                        Connect HubSpot
+                      </Button>
+                    )}
+                  </Box>
                 </Box>
               </Card>
-            )}
 
-            <Card>
-              <Box direction="vertical" gap="SP2" padding="24px">
-                <Text>
-                  Status:{" "}
-                  <strong>
-                    {status?.connected ? "Connected" : "Disconnected"}
-                  </strong>
-                </Text>
-
-                {status?.hubspotPortalId && (
-                  <Text size="small">Portal ID: {status.hubspotPortalId}</Text>
-                )}
-
-                <Box gap="SP2">
-                  {status?.connected ? (
-                    <Button
-                      priority="secondary"
-                      onClick={() => void handleDisconnectHubspot()}
-                    >
-                      Disconnect HubSpot
-                    </Button>
-                  ) : (
-                    <Button onClick={() => void handleConnectHubspot()}>
-                      Connect HubSpot
-                    </Button>
-                  )}
-
-                  <Button
-                    priority="secondary"
-                    onClick={() => void refreshDashboard()}
-                  >
-                    Refresh Status
-                  </Button>
-                </Box>
-              </Box>
-            </Card>
-
-            <Card>
-              <Box direction="vertical" gap="SP3" padding="24px">
-                <Text weight="bold">Field Mapping</Text>
-
-                {mappings.map((row, index) => (
-                  <Box key={index} gap="SP2" verticalAlign="middle">
-                    <AutoComplete
-                      options={wixFieldOptions}
-                      value={wixFieldSearchValues[index] ?? ""}
-                      predicate={(option) =>
-                        matchesSearch(option, wixFieldSearchValues[index] ?? "")
-                      }
-                      onChange={(event) =>
-                        handleWixFieldSearchChange(index, event.target.value)
-                      }
-                      onSelect={(option) => {
-                        const selectedValue = option.value?.toString();
-
-                        if (!selectedValue) {
-                          return;
-                        }
-
-                        handleWixFieldSelect(
-                          index,
-                          selectedValue,
-                          option.label?.toString() ?? selectedValue,
-                        );
-                      }}
-                      emptyStateMessage="No Wix fields found"
-                      highlight
-                      placeholder="Select Wix field"
-                    />
-
-                    <AutoComplete
-                      options={hubspotPropertyOptions}
-                      value={hubspotPropertySearchValues[index] ?? ""}
-                      predicate={(option) =>
-                        matchesSearch(
-                          option,
-                          hubspotPropertySearchValues[index] ?? "",
-                        )
-                      }
-                      onChange={(event) =>
-                        handleHubspotPropertySearchChange(
-                          index,
-                          event.target.value,
-                        )
-                      }
-                      onSelect={(option) => {
-                        const selectedValue = option.value?.toString();
-
-                        if (!selectedValue) {
-                          return;
-                        }
-
-                        handleHubspotPropertySelect(
-                          index,
-                          selectedValue,
-                          option.label?.toString() ?? selectedValue,
-                        );
-                      }}
-                      emptyStateMessage="No HubSpot properties found"
-                      highlight
-                      placeholder="Select HubSpot property"
-                    />
-
-                    <Dropdown
-                      options={directionOptions}
-                      selectedId={row.direction}
-                      onSelect={(option) =>
-                        handleDirectionSelect(
-                          index,
-                          option.value as (typeof row)["direction"],
-                        )
-                      }
-                      placeholder="Direction of syncing"
-                    />
-
-                    <Dropdown
-                      options={transformOptions}
-                      selectedId={row.transformType}
-                      onSelect={(option) =>
-                        handleTransformTypeSelect(
-                          index,
-                          option.value as (typeof row)["transformType"],
-                        )
-                      }
-                      placeholder="Data transformation"
-                    />
-
-                    <Button
-                      priority="secondary"
-                      onClick={() => removeMappingRow(index)}
-                    >
-                      Remove
-                    </Button>
+              <Card>
+                <Box direction="vertical" gap="SP3" padding="24px">
+                  <Box direction="vertical">
+                    <Heading size="large">Field Mapping</Heading>
+                    <Text size="medium" color={"#333853"}>
+                      Define how fields sync between systems
+                    </Text>
                   </Box>
-                ))}
 
-                <Box gap="SP2">
-                  <Button priority="secondary" onClick={addMappingRow}>
-                    Add Mapping
-                  </Button>
-
-                  <Button
-                    onClick={() => void handleSaveMappings()}
-                    disabled={saving}
+                  <Table
+                    data={mappings}
+                    columns={columns}
+                    rowVerticalPadding="medium"
                   >
-                    {saving ? "Saving..." : "Save Mappings"}
+                    <Table.Content />
+                  </Table>
+
+                  <Box gap="SP2">
+                    <TextButton
+                      priority="secondary"
+                      onClick={addMappingRow}
+                      prefixIcon={<Add />}
+                      weight="bold"
+                      style={{
+                        paddingLeft: 24,
+                      }}
+                    >
+                      Add Mapping
+                    </TextButton>
+                  </Box>
+                </Box>
+              </Card>
+            </Box>
+
+            <Card>
+              <Box
+                direction="horizontal"
+                gap="SP2"
+                padding="24px"
+                display="flex"
+                className={styles.footerSticky}
+              >
+                <Text>Unsaved Changes</Text>
+
+                <Box gap="SP3" justifyItems="center" placeItems="center">
+                  <Button priority="secondary">Discard Changes</Button>
+                  <Button onClick={() => void handleSaveMappings()}>
+                    {saving ? "Saving..." : "Save Changes"}
                   </Button>
                 </Box>
               </Box>

@@ -12,11 +12,32 @@ import { MapperService } from '../../sync/mapper/mapper.service';
 import { HashService } from '../../sync/hash/hash.service';
 import { DedupeService } from '../../sync/dedupe/dedupe.service';
 import { WixContactsService } from '../wix-contacts/wix-contacts.service';
+import { FormContextEvent } from '../../forms/form-context.entity';
 import {
   EntityType,
   SyncSource,
   SyncStatus,
 } from '../../common/enums/sync.enums';
+
+type WixNormalizedContact = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  company: string;
+  jobTitle: string;
+};
+
+type ContextAwareWixSource = WixNormalizedContact & {
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+  page_url?: string;
+  referrer_url?: string;
+  submitted_at?: string;
+};
 
 @Injectable()
 export class WixWebhooksService {
@@ -29,6 +50,8 @@ export class WixWebhooksService {
     private readonly syncEventRepo: Repository<SyncEvent>,
     @InjectRepository(ContactLink)
     private readonly contactLinkRepo: Repository<ContactLink>,
+    @InjectRepository(FormContextEvent)
+    private readonly formContextRepo: Repository<FormContextEvent>,
     private readonly wixContactsService: WixContactsService,
     private readonly hubspotTokenService: HubspotTokenService,
     private readonly hubspotContactsService: HubspotContactsService,
@@ -84,8 +107,18 @@ export class WixWebhooksService {
     }
 
     const wixNormalized = this.normalizeWixContact(wixContact);
-    const hubspotPayload = this.mapperService.mapWixToHubSpot(
+    const latestContext = await this.getLatestContextForEmail(
+      wixNormalized.email,
+    );
+
+    const wixSource = this.buildContextAwareWixSource(
       wixNormalized,
+      latestContext,
+      mappings,
+    );
+
+    const hubspotPayload = this.mapperService.mapWixToHubSpot(
+      wixSource,
       mappings,
     );
 
@@ -213,6 +246,10 @@ export class WixWebhooksService {
           hubspotContactId: hubspotContact.id,
           email,
           hubspotPayload,
+          contextApplied: this.getAppliedContextSummary(
+            latestContext,
+            mappings,
+          ),
         },
       }),
     );
@@ -224,7 +261,121 @@ export class WixWebhooksService {
     };
   }
 
-  private normalizeWixContact(contact: any) {
+  private async getLatestContextForEmail(email: string) {
+    const normalizedEmail =
+      typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+    if (!normalizedEmail) {
+      return null;
+    }
+
+    return this.formContextRepo.findOne({
+      where: { email: normalizedEmail },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  private buildContextAwareWixSource(
+    wixNormalized: WixNormalizedContact,
+    latestContext: FormContextEvent | null,
+    mappings: FieldMapping[],
+  ): ContextAwareWixSource {
+    const source: ContextAwareWixSource = {
+      ...wixNormalized,
+    };
+
+    if (!latestContext) {
+      return source;
+    }
+
+    const mappedContextKeys = new Set(
+      mappings
+        .filter((mapping) => this.isWixToHubSpotDirection(mapping.direction))
+        .map((mapping) => mapping.wixFieldKey),
+    );
+
+    if (mappedContextKeys.has('utm_source') && latestContext.utmSource) {
+      source.utm_source = latestContext.utmSource;
+    }
+
+    if (mappedContextKeys.has('utm_medium') && latestContext.utmMedium) {
+      source.utm_medium = latestContext.utmMedium;
+    }
+
+    if (mappedContextKeys.has('utm_campaign') && latestContext.utmCampaign) {
+      source.utm_campaign = latestContext.utmCampaign;
+    }
+
+    if (mappedContextKeys.has('utm_term') && latestContext.utmTerm) {
+      source.utm_term = latestContext.utmTerm;
+    }
+
+    if (mappedContextKeys.has('utm_content') && latestContext.utmContent) {
+      source.utm_content = latestContext.utmContent;
+    }
+
+    if (mappedContextKeys.has('page_url') && latestContext.pageUrl) {
+      source.page_url = latestContext.pageUrl;
+    }
+
+    if (mappedContextKeys.has('referrer_url') && latestContext.referrer) {
+      source.referrer_url = latestContext.referrer;
+    }
+
+    if (mappedContextKeys.has('submitted_at') && latestContext.submittedAt) {
+      source.submitted_at = latestContext.submittedAt.toISOString();
+    }
+
+    return source;
+  }
+
+  private isWixToHubSpotDirection(direction: string) {
+    return direction === 'wix_to_hubspot' || direction === 'bidirectional';
+  }
+
+  private getAppliedContextSummary(
+    latestContext: FormContextEvent | null,
+    mappings: FieldMapping[],
+  ) {
+    if (!latestContext) {
+      return null;
+    }
+
+    const mappedContextKeys = new Set(
+      mappings
+        .filter((mapping) => this.isWixToHubSpotDirection(mapping.direction))
+        .map((mapping) => mapping.wixFieldKey),
+    );
+
+    return {
+      utm_source: mappedContextKeys.has('utm_source')
+        ? latestContext.utmSource
+        : null,
+      utm_medium: mappedContextKeys.has('utm_medium')
+        ? latestContext.utmMedium
+        : null,
+      utm_campaign: mappedContextKeys.has('utm_campaign')
+        ? latestContext.utmCampaign
+        : null,
+      utm_term: mappedContextKeys.has('utm_term')
+        ? latestContext.utmTerm
+        : null,
+      utm_content: mappedContextKeys.has('utm_content')
+        ? latestContext.utmContent
+        : null,
+      page_url: mappedContextKeys.has('page_url')
+        ? latestContext.pageUrl
+        : null,
+      referrer_url: mappedContextKeys.has('referrer_url')
+        ? latestContext.referrer
+        : null,
+      submitted_at: mappedContextKeys.has('submitted_at')
+        ? (latestContext.submittedAt?.toISOString?.() ?? null)
+        : null,
+    };
+  }
+
+  private normalizeWixContact(contact: any): WixNormalizedContact {
     return {
       firstName: contact?.info?.name?.first ?? '',
       lastName: contact?.info?.name?.last ?? '',

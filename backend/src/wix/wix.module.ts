@@ -15,6 +15,7 @@ import { WixWebhookClientService } from './wix-webhook-client/wix-webhook-client
 import { WixWebhookHandlersService } from './wix-webhook-handlers/wix-webhook-handlers.service';
 import { ConfigModule } from '@nestjs/config';
 import { WixSdkClientService } from './wix-sdk-client/wix-sdk-client.service';
+import { FormContextEvent } from '../forms/form-context.entity';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { WixSdkClientService } from './wix-sdk-client/wix-sdk-client.service';
       FieldMapping,
       SyncEvent,
       ContactLink,
+      FormContextEvent,
     ]),
     forwardRef(() => HubspotModule),
     SyncModule,
