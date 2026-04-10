@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { join } from 'path';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { InstallationsModule } from './installations/installations.module';
@@ -14,6 +16,13 @@ import { FormsModule } from './forms/forms.module';
 import { WixModule } from './wix/wix.module';
 @Module({
   imports: [
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'),
+      exclude: ['/api/{*test}'],
+      serveStaticOptions: {
+        fallthrough: false,
+      },
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
