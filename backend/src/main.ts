@@ -8,6 +8,11 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
+
   app.useStaticAssets(join(process.cwd(), 'public'));
 
   app.use('/api/webhooks/wix', text({ type: '*/*' }));
@@ -19,11 +24,6 @@ async function bootstrap() {
       },
     }),
   );
-
-  app.enableCors({
-    origin: true,
-    credentials: true,
-  });
 
   app.useGlobalPipes(
     new ValidationPipe({
